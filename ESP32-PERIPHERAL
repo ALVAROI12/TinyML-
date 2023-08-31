@@ -1,0 +1,103 @@
+/*
+  Temperature Monitor
+
+ARDUINO % ALVARO IBARRA
+*/
+
+#include <ArduinoBLE.h>
+#include <Arduino_HS300x.h>
+
+BLEService temperatureService("180F");
+
+//BLEUnsignedCharCharacteristic temperatureLevelChar("2A19",  // standard 16-bit characteristic UUID
+ //   BLERead | BLENotify); // remote clients will be able to get notifications if this characteristic changes
+BLECharacteristic temperatureLevelChar("2A19",  
+    BLERead | BLENotify, 7);  //limit of "xxx.xx" + null terminator
+
+float old_temp = 0;
+float old_hum = 0; 
+  
+long previousMillis = 0; 
+  
+
+void setup() {
+  Serial.begin(9600);    // initialize serial communication
+  while (!Serial);
+
+pinMode(LED_BUILTIN, OUTPUT);
+
+   if (!HS300x.begin()) {
+    Serial.println("Failed to initialize humidity temperature sensor!");
+    while (1);
+  }
+  // begin initialization
+  if (!BLE.begin()) {
+    Serial.println("starting BLE failed!");
+
+    while (1);
+  }
+
+  /* Set a local name for the Bluetooth® Low Energy device
+     This name will appear in advertising packets
+     and can be used by remote devices to identify this Bluetooth® Low Energy device
+     The name can be changed but maybe be truncated based on space left in advertisement packet
+  */
+  BLE.setLocalName("TemperatureMonitor");
+  BLE.setAdvertisedService(temperatureService); // add the service UUID
+  temperatureService.addCharacteristic(temperatureLevelChar); // add the battery level characteristic
+  BLE.addService(temperatureService); 
+  
+
+  /* Start advertising Bluetooth® Low Energy.  It will start continuously transmitting Bluetooth® Low Energy
+     advertising packets and will be visible to remote Bluetooth® Low Energy central devices
+     until it receives a new connection */
+
+  // start advertising
+  BLE.advertise();
+
+  Serial.println("Bluetooth® device active, waiting for connections...");
+}
+
+void loop() {
+  // wait for a Bluetooth® Low Energy central
+  BLEDevice central = BLE.central();
+
+  // if a central is connected to the peripheral:
+  if (central) {
+    Serial.print("Connected to central: ");
+    // print the central's BT address:
+    Serial.println(central.address());
+    // turn on the LED to indicate the connection:
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    
+    while (central.connected()) {
+     long currentMillis = millis();
+    if (currentMillis - previousMillis >= 200) {
+        previousMillis = currentMillis;
+      
+        updatetemperatureLevel();
+      }
+    }
+    // when the central disconnects, turn off the LED:
+    digitalWrite(LED_BUILTIN, LOW);
+    Serial.print("Disconnected from central: ");
+    Serial.println(central.address());
+  }
+}
+
+void updatetemperatureLevel() {
+  /* Read the current voltage level on the A0 analog input pin.
+     This is used here to simulate the charge level of a battery.
+  */
+  float temperature = HS300x.readTemperature();
+  // print each of the sensor values
+  Serial.print("Temperature = ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+  static char temperatureCTemp[7]; //"xxx.xx" + null terminator
+  sprintf(temperatureCTemp, "%.2f", temperature);//two places after dp
+  temperatureLevelChar.writeValue(temperatureCTemp);  // and update the battery level characteristic
+  old_temp = temperature;  
+  delay(3000);  
+}
