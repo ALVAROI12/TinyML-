@@ -1,0 +1,37 @@
+#include "SoftwareSerial.h"// import the serial library
+ 
+SoftwareSerial mySerial(10, 11); // RX, TX
+int ledpin=6; // led on D13 will be turn on / off as per APP input
+int BluetoothData; // the data given from Computer
+ 
+void setup() 
+{
+   Serial.begin(9600);
+  Serial.println("Input letter a or b to turn on/off on board LED in D13!");
+  // put your setup code here, to run once:
+  mySerial.begin(9600);
+  Serial.println("please send letter 1 or 0 from HC-05 APP to turn on/off LED ..");
+  pinMode(ledpin,OUTPUT);
+}
+ 
+void loop() 
+{
+  // put your main code here, to run repeatedly:
+  if (mySerial.available())
+  {
+    BluetoothData=mySerial.read();
+    if(BluetoothData=='1')
+    {   
+      // if letter 1 is sent from APP   ....
+      digitalWrite(ledpin,1);
+     Serial.println("LED  On D13 ON ! ");
+    }
+    if (BluetoothData=='0')
+    {
+      // if Letter 0 is sent from APP ....
+      digitalWrite(ledpin,0);
+      Serial.println("LED  On D13 Off ! ");
+    }
+  }
+delay(100);// prepare for next data ...
+}
